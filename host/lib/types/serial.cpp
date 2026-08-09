@@ -7,6 +7,7 @@
 
 #include <uhd/types/serial.hpp>
 #include <uhdlib/utils/narrow.hpp>
+#include <algorithm>
 #include <chrono>
 #include <thread>
 
@@ -117,4 +118,57 @@ void spi_iface::write_spi(
     int which_slave, const spi_config_t& config, uint32_t data, size_t num_bits)
 {
     transact_spi(which_slave, config, data, num_bits, false);
+}
+
+void uart_iface::write_uart_bytes(const byte_vector_t& bytes)
+{
+    std::string buf;
+    buf.reserve(bytes.size());
+    for (const uint8_t byte : bytes) {
+        buf.push_back(static_cast<char>(byte));
+    }
+    write_uart(buf);
+}
+
+byte_vector_t uart_iface::read_uart_bytes(const size_t num_bytes, const double timeout)
+{
+    byte_vector_t bytes;
+    bytes.reserve(num_bytes);
+
+    if (num_bytes == 0) {
+        return bytes;
+    }
+
+    const auto deadline = std::chrono::steady_clock::now()
+                          + std::chrono::duration<double>(timeout);
+    while (bytes.size() < num_bytes) {
+        {
+            std::lock_guard<std::mutex> lock(_uart_byte_backlog_mutex);
+            if (!_uart_byte_backlog.empty()) {
+                const size_t bytes_to_copy =
+                    std::min(num_bytes - bytes.size(), _uart_byte_backlog.size());
+                for (size_t i = 0; i < bytes_to_copy; i++) {
+                    bytes.push_back(static_cast<uint8_t>(_uart_byte_backlog[i]));
+                }
+                _uart_byte_backlog.erase(0, bytes_to_copy);
+                continue;
+            }
+        }
+
+        const double remaining = std::chrono::duration<double>(
+                                     deadline - std::chrono::steady_clock::now())
+                                     .count();
+        if (remaining <= 0.0) {
+            break;
+        }
+        const std::string line = read_uart(remaining);
+        if (line.empty()) {
+            break;
+        }
+        {
+            std::lock_guard<std::mutex> lock(_uart_byte_backlog_mutex);
+            _uart_byte_backlog += line;
+        }
+    }
+    return bytes;
 }

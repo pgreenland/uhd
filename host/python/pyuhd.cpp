@@ -84,6 +84,7 @@ PYBIND11_MODULE(libpyuhd, m)
     export_types(types_module);
     export_time_spec(types_module);
     export_spi_config(types_module);
+    export_uart_iface(types_module);
     export_metadata(types_module);
     export_sensors(types_module);
     export_tune(types_module);

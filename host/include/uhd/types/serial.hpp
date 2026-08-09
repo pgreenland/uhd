@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -180,11 +181,29 @@ public:
     virtual void write_uart(const std::string& buf) = 0;
 
     /*!
+     * Write bytes to a serial port.
+     * \param buf the data to write
+     */
+    virtual void write_uart_bytes(const byte_vector_t& buf);
+
+    /*!
      * Read a line from a serial port.
      * \param timeout the timeout in seconds
      * \return the line or empty string upon timeout
      */
     virtual std::string read_uart(double timeout) = 0;
+
+    /*!
+     * Read bytes from a serial port.
+     * \param num_bytes number of bytes to read
+     * \param timeout the timeout in seconds
+     * \return bytes that were read, or empty vector upon timeout
+     */
+    virtual byte_vector_t read_uart_bytes(size_t num_bytes, double timeout);
+
+private:
+    std::mutex _uart_byte_backlog_mutex;
+    std::string _uart_byte_backlog;
 };
 
 } // namespace uhd

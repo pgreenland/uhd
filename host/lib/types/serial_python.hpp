@@ -8,7 +8,30 @@
 #ifndef INCLUDED_UHD_SERIAL_PYTHON_HPP
 #define INCLUDED_UHD_SERIAL_PYTHON_HPP
 
+#include <pybind11/pybind11.h>
 #include <uhd/types/serial.hpp>
+
+namespace py = pybind11;
+
+void export_uart_iface(py::module& m)
+{
+    py::class_<uhd::uart_iface, uhd::uart_iface::sptr>(m, "uart_iface")
+        .def("write_uart", &uhd::uart_iface::write_uart)
+        .def("read_uart", &uhd::uart_iface::read_uart, py::arg("timeout"))
+        .def("write_uart_bytes",
+            [](uhd::uart_iface& self, const py::bytes& bytes) {
+                const std::string raw = bytes.cast<std::string>();
+                self.write_uart_bytes(uhd::byte_vector_t(raw.begin(), raw.end()));
+            })
+        .def("read_uart_bytes",
+            [](uhd::uart_iface& self, const size_t num_bytes, const double timeout) {
+                const auto bytes = self.read_uart_bytes(num_bytes, timeout);
+                return py::bytes(
+                    reinterpret_cast<const char*>(bytes.data()), bytes.size());
+            },
+            py::arg("num_bytes"),
+            py::arg("timeout"));
+}
 
 void export_spi_config(py::module& m)
 {

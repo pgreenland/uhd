@@ -504,6 +504,8 @@ b200_impl::b200_impl(
     if (_gpsdo_capable) {
         _async_task_data->gpsdo_uart =
             b200_uart::make(_ctrl_transport, B200_TX_GPS_UART_SID);
+        _tree->create<uhd::uart_iface::sptr>(mb_path / "gpsdo_uart")
+            .set(_async_task_data->gpsdo_uart);
     }
     _async_task = uhd::msg_task::make(std::bind(
         &b200_impl::handle_async_task, this, _ctrl_transport, _async_task_data));
@@ -527,7 +529,7 @@ b200_impl::b200_impl(
     ////////////////////////////////////////////////////////////////////
     // Create the GPSDO control
     ////////////////////////////////////////////////////////////////////
-    if (_gpsdo_capable) {
+    if (_gpsdo_capable && 0) { // PG: Prevent GPSDO check
         if ((_local_ctrl->peek32(RB32_CORE_STATUS) & 0xff) != B200_GPSDO_ST_NONE) {
             UHD_LOGGER_INFO("B200") << "Detecting internal GPSDO.... " << std::flush;
             try {

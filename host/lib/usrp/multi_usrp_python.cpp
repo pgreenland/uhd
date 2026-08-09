@@ -12,6 +12,8 @@
 namespace py = pybind11;
 
 #include "multi_usrp_python.hpp"
+#include <uhd/exception.hpp>
+#include <uhd/types/serial.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 
 void export_multi_usrp(py::module& m)
@@ -92,6 +94,20 @@ void export_multi_usrp(py::module& m)
         .def("get_num_mboards"         , &multi_usrp::get_num_mboards)
         .def("get_mboard_sensor"       , &multi_usrp::get_mboard_sensor, py::arg("name"), py::arg("mboard") = 0)
         .def("get_mboard_sensor_names" , &multi_usrp::get_mboard_sensor_names, py::arg("mboard") = 0)
+        .def("get_gpsdo_uart",
+            [](multi_usrp& self, const size_t mboard) {
+                const std::string gpsdo_uart_path =
+                    "/mboards/" + std::to_string(mboard) + "/gpsdo_uart";
+                const auto tree = self.get_tree();
+                if (!tree->exists(gpsdo_uart_path)) {
+                    throw uhd::runtime_error(
+                        "GPSDO UART interface is not available for this motherboard");
+                }
+                const auto gpsdo_uart =
+                    tree->access<uhd::uart_iface::sptr>(gpsdo_uart_path).get();
+                return gpsdo_uart;
+            },
+            py::arg("mboard") = 0)
         .def("set_user_register"       , &multi_usrp::set_user_register, py::arg("addr"), py::arg("data"), py::arg("mboard") = ALL_MBOARDS)
         .def("get_radio_control"       , [](multi_usrp& self, const size_t chan){ return &self.get_radio_control(chan); }, py::arg("chan") = 0, py::return_value_policy::reference_internal)
         .def("get_mb_controller"       , [](multi_usrp& self, const size_t chan){ return &self.get_mb_controller(chan); }, py::arg("mboard") = 0, py::return_value_policy::reference_internal)
